@@ -7,6 +7,7 @@ library(shinyWidgets)
 library(shinyMobile)
 library(shinyFiles)
 library(dplyr)
+library(shinyjqui)
 
 setwd("C:/Users/Volunteer/OneDrive - North Island A Luxury Collection/Desktop/Fish ID")
 source("lib/helpers.R")
@@ -220,9 +221,11 @@ server <- function(input, output, session) {
   # display current image
   output$image_display <- renderUI({
     req(image_vals$files)
-    tags$img(
-      src   = image_vals$files[image_vals$index],
-      style = "max-height:90vh; max-width:100%; height:auto; width:auto; object-fit:contain;"
+    shinyjqui::jqui_resizable(
+      tags$img(
+        src   = image_vals$files[image_vals$index],
+        style = "max-height:90vh; max-width:100%; height:auto; width:auto; object-fit:contain;"
+      )
     )
   })
   
