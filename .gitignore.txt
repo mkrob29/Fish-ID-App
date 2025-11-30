@@ -1,0 +1,11 @@
+.Rhistory
+.Rproj.user/
+.RData
+.Ruserdata
+.Rapp.history
+.Renviron
+.Rprofile
+.quarto/
+cache/
+*.utf8.md
+*.knit.md
