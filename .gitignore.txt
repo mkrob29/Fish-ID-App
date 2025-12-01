@@ -9,3 +9,6 @@
 cache/
 *.utf8.md
 *.knit.md
+*.jpg
+!North-Island-Conservation-tutrle-hatchlings-2048x1365.jpg
+*.JPG
