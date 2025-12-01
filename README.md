@@ -13,7 +13,7 @@ Usually they are stored on the harddrive (called DataDir) in "Marine Obersavtion
 For the case that no harddrive is available, you can switch to the local User Directory (called UserDir) via the dropdown menu in the upper right.<br>
 Furthermore, specify the day, month, year and snorkel/dive site.<br>
 These settings **will remain the same for all entries**! If you want to do another folder, just restart the app.<br>
-When finished, click the button "Confirm Setup". This might take a while, since the app need to load all pictures!
+When finished, click the button "Confirm Setup". This might take a while, since the app needs to load all pictures!
 
 ## 4. Make an Entry
 Note: You can make the picture larger or smaller by hovering over the corners/edges.<br>
