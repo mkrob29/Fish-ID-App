@@ -85,6 +85,16 @@ ui <- fluidPage(
                          )
                        )
               ),
+              tabPanel("How To",
+                       fluidRow(
+                         column(12,
+                                div(class = "setup-panel",
+                                    tags$hr(),
+                                    includeMarkdown("README.md")
+                                )
+                         )
+                       )
+              ),
               tabPanel("Credits",
                        fluidRow(
                          column(12,
@@ -99,13 +109,18 @@ ui <- fluidPage(
                                     tags$p("Important notice: do not move original excel files, as data download will not work"),
                                     tags$p("If you want to add new species to the master databse, please add it in the corresponding excel-file"),
                                     tags$br(),
-                                    tags$p("If you read this you have to eat a coconut for me :)")
+                                    tags$p("If you read this you have to eat a coconut for me :)"),
+                                    
+                                    tags$p(
+                                      "Source code available on ",
+                                      tags$a(href = "https://github.com/mkrob29/Fish-ID-App", 
+                                             "GitHub", target = "_blank")
                                 )
                          )
                        )
               )
   )
-)
+))
 
 server <- function(input, output, session) {
   
@@ -113,14 +128,19 @@ server <- function(input, output, session) {
   new_db_path <- "C:/Users/Volunteer/OneDrive - North Island A Luxury Collection/Documents - NI-Environment Center/VOLUNTEERS/Database/Coral Reef monitoring/Fish_ID_App.xlsx"
   master_path <- "C:/Users/Volunteer/OneDrive - North Island A Luxury Collection/Documents - NI-Environment Center/VOLUNTEERS/Database/Coral Reef monitoring/Fish ID database_V3.xlsx"
   
+  
   # db which lists all sightings
   initial_db <- read_excel(
     new_db_path,
     sheet = "DATABASE",
-    col_types = c("numeric", "numeric", "numeric", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text"))
+    col_types = c("numeric", "numeric", "numeric", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text"))
   
   sightings_db <- reactiveVal(initial_db)
-  autofill_vals <- reactiveVal(list(Common_Name = NULL, Fish_Group = NULL))
+  autofill_vals <- reactiveVal(list(Common_Name = NULL,
+                                    Fish_Group = NULL,
+                                    Genus = NULL,
+                                    Family = NULL,
+                                    Order = NULL))
   current_file_val <- reactiveVal("")
   
   # master db which lists species and genus names etc
@@ -136,6 +156,9 @@ server <- function(input, output, session) {
   ac_fish_group <- sort(unique(master_db$Group))
   ac_species <- sort(unique(master_db$`Species scientific name`))
   ac_common_name <- sort(unique(master_db$`Common name`))
+  ac_order <- sort(unique(master_db$Order))
+  ac_family <- sort(unique(master_db$Family))
+  ac_genus <- sort(unique(master_db$Genus))
   
   # Setup Page Logic
   volumes <- c(
@@ -244,7 +267,11 @@ server <- function(input, output, session) {
     req(loaded())
     req(!is.null(sightings_db()))
     
-    lapply(names(sightings_db()), function(col){
+    # Exclude unwanted columns
+    exclude_cols <- c("Day", "Month", "Year", "Snorkel/Dive site", "Reference video", "Time in Video", "Day of entry")   # put the names you want to skip
+    cols <- setdiff(names(sightings_db()), exclude_cols)
+    
+    lapply(cols, function(col){
       col_class <- class(sightings_db()[[col]])[1]
       
       # Special autocomplete fields
@@ -281,21 +308,46 @@ server <- function(input, output, session) {
         )
       }
       
-      # Inline defaults for Day / Month / Year / Spot
-      if (col == "Day") {
-        return(textInput("Day", "Day", value = setup_vals$day))
+      if (col == "Order") {
+        return(
+          selectizeInput(
+            "Order", "Order",
+            choices = c("", ac_order),
+            options = list(placeholder = "Start typing..."),
+            selected = NULL
+          )
+        )
       }
-      if (col == "Month") {
-        return(textInput("Month", "Month", value = setup_vals$month))
+      
+      if (col == "Family") {
+        return(
+          selectizeInput(
+            "Family", "Family",
+            choices = c("", ac_family),
+            options = list(placeholder = "Start typing..."),
+            selected = NULL
+          )
+        )
       }
-      if (col == "Year") {
-        return(textInput("Year", "Year", value = setup_vals$year))
-      }
-      if (col == "Snorkel/Dive site") {
-        return(textInput("Snorkel/Dive site", "Snorkel/Dive site", value = setup_vals$spot))
+      
+      if (col == "Genus") {
+        return(
+          selectizeInput(
+            "Genus", "Genus",
+            choices = c("", ac_genus),
+            options = list(placeholder = "Start typing..."),
+            selected = NULL
+          )
+        )
       }
       if (col == "Reference Folder") {
-        return(textInput("Reference Folder", "Reference Folder", value = setup_vals$dir))
+        return(
+          textInput(
+            "Reference Folder",
+            "Reference Folder",
+            value = basename(setup_vals$dir)   # only last folder
+          )
+        )
       }
       if (col == "Reference picture") {
         current_file <- if (!is.null(image_vals$files)) basename(image_vals$files[image_vals$index]) else ""
@@ -318,7 +370,6 @@ server <- function(input, output, session) {
     })
   })
   
-  
   # Auto-fill observers using master_db
   observeEvent(input$Species, ignoreInit = TRUE, {
     req(loaded(), master_db, input$Species)
@@ -338,6 +389,32 @@ server <- function(input, output, session) {
                              choices = sort(unique(species_filtered$Group)),
                              server = TRUE)
       }
+      if (is.null(input$Order) || input$Order == "") {
+        updateSelectizeInput(session, "Order",
+                             selected = species_filtered$Order[1],
+                             choices = sort(unique(species_filtered$Order)),
+                             server = TRUE)
+      }
+      if (is.null(input$Family) || input$Family == "") {
+        updateSelectizeInput(session, "Family",
+                             selected = species_filtered$Family[1],
+                             choices = sort(unique(species_filtered$Family)),
+                             server = TRUE)
+      }
+      if (is.null(input$Genus) || input$Genus == "") {
+        updateSelectizeInput(session, "Genus",
+                             selected = species_filtered$Genus[1],
+                             choices = sort(unique(species_filtered$Genus)),
+                             server = TRUE)
+      }
+      # store autofill values so the inputs actually show the value
+      autofill_vals(list(
+        Common_Name = species_filtered$`Common name`[1],
+        Fish_Group  = species_filtered$Group[1],
+        Order       = species_filtered$Order[1],
+        Family      = species_filtered$Family[1],
+        Genus       = species_filtered$Genus[1]
+      ))
     }
   })
   
@@ -346,34 +423,56 @@ server <- function(input, output, session) {
     species_filtered <- master_db %>%
       dplyr::filter(`Common name` == input$Common_Name)
     
-    if (is.null(input$Species) || input$Species == "") {
-      updateSelectizeInput(session, "Species",
-                           selected = species_filtered$`Species scientific name`[1],
-                           choices = sort(unique(species_filtered$`Species scientific name`)),
-                           server = TRUE)
-    }
     if (nrow(species_filtered) > 0) {
+      if (is.null(input$Species) || input$Species == "") {
+        updateSelectizeInput(session, "Species",
+                             selected = species_filtered$`Species scientific name`[1],
+                             choices = sort(unique(species_filtered$`Species scientific name`)),
+                             server = TRUE)
+      }
       if (is.null(input$Fish_Group) || input$Fish_Group == "") {
         updateSelectizeInput(session, "Fish_Group",
                              selected = species_filtered$Group[1],
                              choices = sort(unique(species_filtered$Group)),
                              server = TRUE)
       }
-      # store autofill values
+      if (is.null(input$Order) || input$Order == "") {
+        updateSelectizeInput(session, "Order",
+                             selected = species_filtered$Order[1],
+                             choices = sort(unique(species_filtered$Order)),
+                             server = TRUE)
+      }
+      if (is.null(input$Family) || input$Family == "") {
+        updateSelectizeInput(session, "Family",
+                             selected = species_filtered$Family[1],
+                             choices = sort(unique(species_filtered$Family)),
+                             server = TRUE)
+      }
+      if (is.null(input$Genus) || input$Genus == "") {
+        updateSelectizeInput(session, "Genus",
+                             selected = species_filtered$Genus[1],
+                             choices = sort(unique(species_filtered$Genus)),
+                             server = TRUE)
+      }
       autofill_vals(list(
+        Species     = species_filtered$`Species scientific name`[1],
         Common_Name = species_filtered$`Common name`[1],
-        Fish_Group  = species_filtered$Group[1]
+        Fish_Group  = species_filtered$Group[1],
+        Order       = species_filtered$Order[1],
+        Family      = species_filtered$Family[1],
+        Genus       = species_filtered$Genus[1]
       ))
     }
   })
   
+  # Fish Group
   observeEvent(input$Fish_Group, ignoreInit = TRUE, {
     req(loaded(), master_db, input$Fish_Group)
     species_filtered <- master_db %>%
       dplyr::filter(Group == input$Fish_Group)
     
     species_choices <- sort(unique(species_filtered$`Species scientific name`))
-    common_choices <- sort(unique(species_filtered$`Common name`))
+    common_choices  <- sort(unique(species_filtered$`Common name`))
     
     if (is.null(input$Species) || input$Species == "") {
       updateSelectizeInput(session, "Species",
@@ -387,21 +486,105 @@ server <- function(input, output, session) {
                            selected = "",
                            server = TRUE)
     }
-    # store autofill values
-    autofill_vals(list(
-      Common_Name = species_filtered$`Common name`[1],
-      Fish_Group  = species_filtered$Group[1]
-    ))
   })
+  
+  # Order
+  observeEvent(input$Order, ignoreInit = TRUE, {
+    req(loaded(), master_db, input$Order)
+    species_filtered <- master_db %>%
+      dplyr::filter(Order == input$Order)
+    
+    species_choices <- sort(unique(species_filtered$`Species scientific name`))
+    common_choices  <- sort(unique(species_filtered$`Common name`))
+    
+    
+    if (is.null(input$Species) || input$Species == "") {
+      updateSelectizeInput(session, "Species",
+                           choices = species_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+    if (is.null(input$Common_Name) || input$Common_Name == "") {
+      updateSelectizeInput(session, "Common_Name",
+                           choices = common_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+  })
+  
+  # Family
+  observeEvent(input$Family, ignoreInit = TRUE, {
+    req(loaded(), master_db, input$Family)
+    species_filtered <- master_db %>%
+      dplyr::filter(Family == input$Family)
+    
+    species_choices <- sort(unique(species_filtered$`Species scientific name`))
+    common_choices  <- sort(unique(species_filtered$`Common name`))
+    
+    if (is.null(input$Species) || input$Species == "") {
+      updateSelectizeInput(session, "Species",
+                           choices = species_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+    if (is.null(input$Common_Name) || input$Common_Name == "") {
+      updateSelectizeInput(session, "Common_Name",
+                           choices = common_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+  })
+  
+  # Genus
+  observeEvent(input$Genus, ignoreInit = TRUE, {
+    req(loaded(), master_db, input$Genus)
+    species_filtered <- master_db %>%
+      dplyr::filter(Genus == input$Genus)
+    
+    species_choices <- sort(unique(species_filtered$`Species scientific name`))
+    common_choices  <- sort(unique(species_filtered$`Common name`))
+    
+    if (is.null(input$Species) || input$Species == "") {
+      updateSelectizeInput(session, "Species",
+                           choices = species_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+    if (is.null(input$Common_Name) || input$Common_Name == "") {
+      updateSelectizeInput(session, "Common_Name",
+                           choices = common_choices,
+                           selected = "",
+                           server = TRUE)
+    }
+  })
+  
+  
+  
   
   # Preview new row
   new_row <- reactive({
-    vals <- lapply(names(sightings_db()), function(col) {
+    # Start with all column names
+    cols <- names(sightings_db())
+    
+    # Collect values from inputs
+    vals <- lapply(cols, function(col) {
       val <- input[[col]]
       if (is.null(val)) NA else val
     })
+    
+    # Name the list by column names
+    vals <- setNames(vals, cols)
+    
+    # Override / set defaults for special columns
+    vals$Day   <- setup_vals$day
+    vals$Month <- setup_vals$month
+    vals$Year  <- setup_vals$year
+    vals$`Snorkel/Dive site` <- setup_vals$spot
+    vals$`Day of entry` <- format(Sys.Date(), "%d-%m-%Y")  # auto-set to today
+    
+    # Convert to data frame
     df <- as.data.frame(t(vals), stringsAsFactors = FALSE)
-    colnames(df) <- names(sightings_db())
+    colnames(df) <- names(vals)
     df
   })
   
@@ -460,6 +643,15 @@ server <- function(input, output, session) {
     if (is.null(new_row_df$`Fish Group`) || new_row_df$`Fish Group` == ""|| is.na(new_row_df$`Fish Group`)) {
       new_row_df$`Fish Group` <- af$Fish_Group
     }
+    if (is.null(new_row_df$Order) || new_row_df$Order == ""|| is.na(new_row_df$Order)) {
+      new_row_df$Order <- af$Order
+    }
+    if (is.null(new_row_df$Family) || new_row_df$Family == ""|| is.na(new_row_df$Family)) {
+      new_row_df$Family <- af$Family
+    }
+    if (is.null(new_row_df$Genus) || new_row_df$Genus == ""|| is.na(new_row_df$Genus)) {
+      new_row_df$Genus <- af$Genus
+    }
     if (is.null(new_row_df$`Reference picture`) ||
         new_row_df$`Reference picture` == "" ||
         is.na(new_row_df$`Reference picture`)) {
@@ -483,9 +675,18 @@ server <- function(input, output, session) {
       }
     }
     
-    updated <- dplyr::bind_rows(sightings_db(), new_row_df)
     # reapply underscores
     cols_to_fix <- c("Common Name", "Fish Group", "Species")
+    
+    for (col in cols_to_fix) {
+      if (col %in% names(new_row_df)) {
+        new_row_df[[col]] <- gsub(" ", "_", trimws(gsub("\\s+", " ", new_row_df[[col]])))
+      }
+    }
+    
+    # if a species is put in double it will not be saved to the database
+    updated <- bind_rows(sightings_db(), new_row_df) %>%
+      distinct(Day, Month, Year, `Snorkel/Dive site`, Species, .keep_all = TRUE)
     
     for (col in cols_to_fix) {
       if (col %in% names(updated)) {
